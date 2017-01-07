@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature="use_std"), no_std)]
+
 #[inline]
 pub fn sign_extend(data: u32, size: u32) -> i32 {
     assert!(size > 0 && size <= 32);
@@ -7,7 +9,12 @@ pub fn sign_extend(data: u32, size: u32) -> i32 {
 #[macro_export]
 macro_rules! bits {
     ($val:expr, $low:expr => $hi:expr) => {{
-        let max_bit = ::std::mem::size_of_val(&$val) * 8 - 1;
+        #[cfg(feature="use_std")]
+        use ::std::mem::size_of_val;
+        #[cfg(not(feature="use_std"))]
+        use ::core::mem::size_of_val;
+
+        let max_bit = size_of_val(&$val) * 8 - 1;
         $val << (max_bit - $hi) >> (max_bit - $hi + $low)
     }};
 }
@@ -74,6 +81,7 @@ macro_rules! bitfield {
             )*
         }
 
+        #[cfg(feature="use_std")]
         impl ::std::fmt::Debug for $name {
             fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                 f.debug_struct(stringify!($name))
