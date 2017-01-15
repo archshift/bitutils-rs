@@ -7,14 +7,18 @@ pub fn sign_extend(data: u32, size: u32) -> i32 {
 }
 
 #[macro_export]
+#[cfg(feature="use_std")]
 macro_rules! bits {
     ($val:expr, $low:expr => $hi:expr) => {{
-        #[cfg(feature="use_std")]
-        use ::std::mem::size_of_val;
-        #[cfg(not(feature="use_std"))]
-        use ::core::mem::size_of_val;
-
-        let max_bit = size_of_val(&$val) * 8 - 1;
+        let max_bit = ::std::mem::size_of_val(&$val) * 8 - 1;
+        $val << (max_bit - $hi) >> (max_bit - $hi + $low)
+    }};
+}
+#[macro_export]
+#[cfg(not(feature="use_std"))]
+macro_rules! bits {
+    ($val:expr, $low:expr => $hi:expr) => {{
+        let max_bit = ::core::mem::size_of_val(&$val) * 8 - 1;
         $val << (max_bit - $hi) >> (max_bit - $hi + $low)
     }};
 }
@@ -31,6 +35,21 @@ macro_rules! bf {
         let item = $var.$item();
         $var.set(item, $val)
     );
+}
+
+
+#[macro_export]
+#[cfg(feature="use_std")]
+macro_rules! __bitfield_impl_debug__ {
+    ($name:ident, { $($var_name:ident),* }) => {
+        impl ::std::fmt::Debug for $name {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                f.debug_struct(stringify!($name))
+                    $(.field(stringify!($var_name), &bf!(self.$var_name)))*
+                    .finish()
+            }
+        }
+    }
 }
 
 #[macro_export]
@@ -81,14 +100,7 @@ macro_rules! bitfield {
             )*
         }
 
-        #[cfg(feature="use_std")]
-        impl ::std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                f.debug_struct(stringify!($name))
-                    $(.field(stringify!($var_name), &bf!(self.$var_name)))*
-                    .finish()
-            }
-        }
+        __bitfield_impl_debug__!($name, { $($var_name),* });
     };
 }
 
