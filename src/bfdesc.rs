@@ -1,11 +1,3 @@
-#[macro_export]
-macro_rules! bits {
-    ($val:expr, $low:expr => $hi:expr) => {{
-        let max_bit = ::std::mem::size_of_val(&$val) * 8 - 1;
-        $val << (max_bit - $hi) >> (max_bit - $hi + $low)
-    }};
-}
-
 #[cfg(feature="use_std")]
 use std::ops::{BitOrAssign, BitXorAssign, Shl, Shr};
 #[cfg(feature="use_std")]
