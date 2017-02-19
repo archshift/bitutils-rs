@@ -13,6 +13,12 @@ macro_rules! __bitfield_impl_debug__ {
 }
 
 #[macro_export]
+#[cfg(not(feature="use_std"))]
+macro_rules! __bitfield_impl_debug__ {
+    ($name:ident, { $($var_name:ident),* }) => {}
+}
+
+#[macro_export]
 macro_rules! bitfield {
     ($name:ident: $ty:ty, { $($var_name:ident: $var_low:expr => $var_hi:expr),* }) => {
         #[derive(Clone, Copy, Default)]
