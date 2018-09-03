@@ -1,11 +1,28 @@
 #![cfg_attr(not(feature="use_std"), no_std)]
 
+/// Sign extend a `size`-bit number (stored in a u32) to an i32.
+/// ```
+/// let i5bit = 0b11110;
+/// let i32bit = bitutils::sign_extend32(i5bit, 5);
+/// assert_eq!(i32bit, -2);
+/// ```
 #[inline]
 pub fn sign_extend32(data: u32, size: u32) -> i32 {
     assert!(size > 0 && size <= 32);
     ((data << (32 - size)) as i32) >> (32 - size)
 }
 
+/// Extract a range of bits from a value.
+/// Syntax: `bits!(val, lowbit:hibit);`
+/// ```
+/// #[macro_use]
+/// extern crate bitutils;
+/// 
+/// # fn main() {
+/// let bits = bits!(0b0101000u8, 3:5);
+/// assert_eq!(bits, 0b101);
+/// # }
+/// ```
 #[macro_export]
 macro_rules! bits {
     ($val:expr, $low:tt : $hi:tt) => {{
@@ -14,6 +31,16 @@ macro_rules! bits {
     }};
 }
 
+/// Extract a bit from a value.
+/// ```
+/// #[macro_use]
+/// extern crate bitutils;
+/// 
+/// # fn main() {
+/// let bit = bit!(0b01000u8, 3);
+/// assert_eq!(bit, 1);
+/// # }
+/// ```
 #[macro_export]
 macro_rules! bit {
     ($val:expr, $bit:expr) => { bits!($val, $bit:$bit) };
@@ -24,11 +51,13 @@ macro_rules! bit {
  */
 
 #[cfg(feature="use_std")]
+#[doc(hidden)]
 pub use std::{
     mem::size_of_val,
     ops::{Deref, DerefMut},
 };
 #[cfg(not(feature="use_std"))]
+#[doc(hidden)]
 pub use core::{
     mem::size_of_val,
     ops::{Deref, DerefMut},
@@ -36,6 +65,7 @@ pub use core::{
 
 #[macro_export]
 #[cfg(feature="use_std")]
+#[doc(hidden)]
 macro_rules! __bitfield_impl_debug__ {
     ($name:ident, { $($var_name:ident),* }) => {
         impl ::std::fmt::Debug for Bf {
@@ -50,10 +80,45 @@ macro_rules! __bitfield_impl_debug__ {
 
 #[macro_export]
 #[cfg(not(feature="use_std"))]
+#[doc(hidden)]
 macro_rules! __bitfield_impl_debug__ {
     ($name:ident, { $($var_name:ident),* }) => {}
 }
 
+
+/// Declare a bitfield type.
+/// ```
+/// #[macro_use]
+/// extern crate bitutils;
+/// 
+/// bf!(BitfieldName[u8] {
+///     field1: 0:3, // lower nibble
+///     field2: 4:6,
+///     field3: 7:7
+/// });
+/// 
+/// # fn main() {
+/// let mut bf = BitfieldName::new(0);
+/// bf.field3.set(0xF);
+/// assert_eq!(bf.val, 0x80);
+/// 
+/// bf.val = 0xF0;
+/// assert_eq!(bf.field1.get(), 0);
+/// assert_eq!(bf.field2.get(), 7);
+/// assert_eq!(bf.field3.get(), 1);
+/// # }
+/// ```
+/// 
+/// This declares a module `BitfieldName` with the members:
+/// - `pub struct Bf { pub val: T, pub field1: Field1, pub field2... }`
+/// - `pub fn new(val: T) -> Bf`
+/// - `pub fn alias(val: &'a T) -> &'a Bf`
+/// - `pub fn alias_mut(val: &'a mut T) -> &'a mut Bf`
+/// 
+/// Each field has the impl:
+/// - `pub fn get(&self) -> T`
+/// - `pub fn set(&mut self, val: T)`
+/// - `pub fn update(&mut self, func: FnOnce(T) -> T)`
 #[macro_export]
 macro_rules! bf {
     ($name:ident [$ty:ty] { $($var_name:ident: $var_low:tt : $var_hi:tt),* $(,)* }) => {
