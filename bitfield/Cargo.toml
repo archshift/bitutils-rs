@@ -1,0 +1,19 @@
+[package]
+name = "bf-impl"
+version = "1.0.0"
+authors = ["archshift <gh@archshift.com>"]
+license = "MIT"
+description = "Bitfield procedural macro"
+repository = "https://github.com/archshift/bitutils-rs"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "0.6"
+proc-macro2 = "0.4"
+syn = "0.15"
+
+[features]
+default = ["use_std"]
+use_std = []
