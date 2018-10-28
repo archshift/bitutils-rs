@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature="use_std"), no_std)]
+extern crate bf_impl;
 
 /// Sign extend a `size`-bit number (stored in a u32) to an i32.
 /// ```
@@ -63,29 +64,6 @@ pub use core::{
     ops::{Deref, DerefMut},
 };
 
-#[macro_export]
-#[cfg(feature="use_std")]
-#[doc(hidden)]
-macro_rules! __bitfield_impl_debug__ {
-    ($name:ident, { $($var_name:ident),* }) => {
-        impl ::std::fmt::Debug for Bf {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-                f.debug_struct(stringify!($name))
-                    $(.field(stringify!($var_name), &self.$var_name.get()))*
-                    .finish()
-            }
-        }
-    }
-}
-
-#[macro_export]
-#[cfg(not(feature="use_std"))]
-#[doc(hidden)]
-macro_rules! __bitfield_impl_debug__ {
-    ($name:ident, { $($var_name:ident),* }) => {}
-}
-
-
 /// Declare a bitfield type.
 /// ```
 /// #[macro_use]
@@ -99,13 +77,13 @@ macro_rules! __bitfield_impl_debug__ {
 /// 
 /// # fn main() {
 /// let mut bf = BitfieldName::new(0);
-/// bf.field3.set(0xF);
+/// bf.set_field3(0xF);
 /// assert_eq!(bf.val, 0x80);
 /// 
 /// bf.val = 0xF0;
-/// assert_eq!(bf.field1.get(), 0);
-/// assert_eq!(bf.field2.get(), 7);
-/// assert_eq!(bf.field3.get(), 1);
+/// assert_eq!(bf.field1(), 0);
+/// assert_eq!(bf.field2(), 7);
+/// assert_eq!(bf.field3(), 1);
 /// # }
 /// ```
 /// 
@@ -116,127 +94,45 @@ macro_rules! __bitfield_impl_debug__ {
 /// - `pub fn alias_mut(val: &'a mut T) -> &'a mut Bf`
 /// 
 /// Each field has the impl:
-/// - `pub fn get(&self) -> T`
-/// - `pub fn set(&mut self, val: T)`
-/// - `pub fn update(&mut self, func: FnOnce(T) -> T)`
+/// - `pub fn(&self) -> T`
+/// - `pub set_fn(&mut self, val: T)`
+/// - `pub upd_fn(&mut self, func: FnOnce(T) -> T)`
 #[macro_export]
 macro_rules! bf {
-    ($name:ident [$ty:ty] { $($var_name:ident: $var_low:tt : $var_hi:tt),* $(,)* }) => {
-        #[allow(non_snake_case)]
-        pub mod $name {
-            $(
-                #[repr(C)]
-                pub struct $var_name {
-                    _dont_instantiate: ()
-                }
-
-                #[allow(dead_code)]
-                impl $var_name {
-                    #[inline(always)]
-                    pub fn get(&self) -> $ty {
-                        let bfptr = self as *const Self as *const Bf;
-                        let _ = self;
-                        let val = unsafe { (*bfptr).val };
-                        bits!(val, $var_low : $var_hi)
-                    }
-
-                    #[inline(always)]
-                    pub fn set(&mut self, new: $ty) {
-                        let bfptr = self as *mut Self as *mut Bf;
-                        let _ = self;
-                        let val = unsafe { &mut (*bfptr).val };
-                        *val ^= bits!(*val, $var_low : $var_hi) << $var_low;
-                        *val |= bits!(new, 0 : ($var_hi - $var_low)) << $var_low;
-                    }
-
-                    #[inline(always)]
-                    pub fn update<F>(&mut self, func: F)
-                        where F: FnOnce($ty) -> $ty {
-                        let old = self.get();
-                        self.set(func(old))
-                    }
-                }
-            )*
-
-            #[repr(C)]
-            pub struct Fields {
-                $( pub $var_name: $var_name ),*
-            }
-
-            #[repr(transparent)]
-            #[derive(Copy, Clone)]
-            pub struct Bf {
-                pub val: $ty,
-            }
-            impl Bf {
-                #[inline(always)]
-                pub fn new(val: $ty) -> Self {
-                    Self {
-                        val: val
-                    }
-                }
-            }
-            impl $crate::Deref for Bf {
-                type Target = Fields;
-                #[inline(always)]
-                fn deref(&self) -> &Fields {
-                   unsafe { &*(self as *const Self as *const Fields) } 
-                }
-            }
-            impl $crate::DerefMut for Bf {
-                #[inline(always)]
-                fn deref_mut(&mut self) -> &mut Fields {
-                   unsafe { &mut *(self as *mut Self as *mut Fields) } 
-                }
-            }
-
-            __bitfield_impl_debug__!($name, { $($var_name),* });
-
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub fn new(val: $ty) -> Bf {
-                Bf::new(val)
-            }
-
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub fn alias<'a>(val: &'a $ty) -> &'a Bf {
-                unsafe { &*(val as *const $ty as *const Bf) }
-            }
-
-            #[allow(dead_code)]
-            #[inline(always)]
-            pub fn alias_mut<'a>(val: &'a mut $ty) -> &'a mut Bf {
-                unsafe { &mut *(val as *mut $ty as *mut Bf) }
-            }
-        }
+    ($($args:tt)*) => {
+        $crate::bf_inner!($($args)*);
     };
 }
 
+#[doc(hidden)]
+pub use bf_impl::bf as bf_inner;
+
 #[cfg(test)]
 mod test {
+    use super::*;
+
     bf!(TestField[u8] {
         bottom: 0:5,
         top: 6:7,
     });
 
     #[test]
-    fn bitfield_get() {
+    fn bitfield() {
         let field = TestField::new(0b10100000);
-        assert_eq!(field.top.get(), 0b10);
+        assert_eq!(field.top(), 0b10);
     }
 
     #[test]
-    fn bitfield_set() {
+    fn set_bitfield() {
         let mut bf = TestField::new(0);
-        bf.top.set(0b11);
+        bf.set_top(0b11);
         assert_eq!(bf.val, 0b11000000);
     }
 
     #[test]
-    fn bitfield_update() {
+    fn upd_bitfield() {
         let mut bf = TestField::new(0);
-        bf.top.update(|x| x + 1);
+        bf.upd_top(|x| x + 1);
         assert_eq!(bf.val, 0b01000000);
     }
 
@@ -245,10 +141,10 @@ mod test {
         let mut val = 0b10100000;
         {
             let bf = TestField::alias(&val);
-            assert_eq!(bf.top.get(), 0b10);
+            assert_eq!(bf.top(), 0b10);
         }
         let bf = TestField::alias_mut(&mut val);
-        bf.top.set(0b11);
+        bf.set_top(0b11);
         assert_eq!(bf.val, 0b11100000);
     }
 
