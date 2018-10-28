@@ -21,8 +21,8 @@ bf!(BitfieldName[uXX] {
 #### Usage:
 ```rust
 let mut bf = BitfieldName::new(0xFFFF);
-bf.field1.get();
-bf.field2.set(0x3);
+bf.field1;
+bf.set_field2(0x3);
 bf.val &= 0xFF;
 println!("{:x?}", bf);
 ```
