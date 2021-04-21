@@ -1,13 +1,13 @@
 [package]
 name = "bitutils"
-version = "3.0.0"
+version = "3.0.1"
 authors = ["archshift <gh@archshift.com>"]
 license = "MIT"
 description = "Bitfield macro and utilities"
 repository = "https://github.com/archshift/bitutils-rs"
 
 [dependencies]
-bf-impl = "1.0"
+bf-impl = {version = "1.0", default-features = false}
 
 [features]
 default = ["use_std"]
